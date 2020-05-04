@@ -4,9 +4,8 @@ const port = process.argv[3] || 12345;
 const message = process.argv[4] || 'Hello TCP World!';
 const client = new net.Socket();
 
-client.connect(port, host, function() {
+client.connect(port, host, function () {
 	console.log('TCP connection established with the server.');
-
 	client.write(`${message} from ${client.address().address}`);
 });
 
@@ -16,7 +15,7 @@ client.on('data', function (chunk) {
 });
 
 client.on('end', function () {
-  console.log('Requested an end to the TCP connection');
+	console.log('Requested an end to the TCP connection');
 });
 
 client.on('error', (error) => {
