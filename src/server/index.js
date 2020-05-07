@@ -11,9 +11,8 @@ class TCPServer extends Server {
 
     startSever() {
         const serverIp = this.getServerIp();
-
-        const serverSocket = this.createServerSocket(serverIp, this.port);
-
+        this.createServerSocket(serverIp, this.port);
+        this.processRequest();
     }
 
     getServerIp() {
@@ -31,26 +30,42 @@ class TCPServer extends Server {
     }
 
     createServerSocket(serverIP, port) {
+        super.maxConnections = 1;
         super.listen(port, serverIP, () => {
             console.info(
                 `Server listening 🚀 for connection requests on socket port:${port} and address: ${serverIP}`
             );
         });
+    }
 
+    processRequest() {
         super.on('connection', (socket) => {
             socket.setEncoding('utf-8');
             socket.setTimeout(1000);
 
             socket.on('data', (chunk) => {
                 // Here we have the data from the client
-                console.log(`Data received from client: ${chunk}`);
+                const messageParts = chunk.split('\n');
+                if (messageParts.length != 3) throw new Error('Invalid message format')
+                if (!messageParts[1].toUpperCase().trim().includes('MACHINE:')) throw new Error('Invalid message format');
+                const machineParts = messageParts[1].split(':');
+                if (machineParts.length != 2) throw new Error('Invalid message format');
+
+                const machine = machineParts[1].trim().toUpperCase();
+                if (!messageParts[2].toUpperCase().trim().includes('DATA:')) throw new Error('Invalid message format');
+
+                const data = messageParts[2].substring(6);
+                const dataReceived = `when: ${new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')}, machine: ${machine}, data: ${data}`;
+
+                console.log(`Data received from client:\n\n${dataReceived}`);
                 socket.end();
             });
             // Response to the client
-            socket.write('We got ya!');
+
+            socket.write('Success!');
 
             socket.on('error', (err) => {
-                console.log(`Error: ${err}`);
+                console.log(err);
             });
         });
     }

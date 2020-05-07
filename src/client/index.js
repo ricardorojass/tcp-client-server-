@@ -1,12 +1,15 @@
 const net = require('net');
-const host = process.argv[2] || '192.168.1.2';
-const port = process.argv[3] || 12345;
-const message = process.argv[4] || 'Hello TCP World!';
+const areThereThreeArgs = process.argv.length === 5;
+const host = areThereThreeArgs ? process.argv[2] : '192.168.1.2';
+const port = areThereThreeArgs ? process.argv[3] : 12345;
+const messageToSend = areThereThreeArgs ? process.argv[4] : 'LOG\nMACHINE: M001-A3\nDATA: { Temperatura: 15, Humedad: 10, ProbabilidadLluvia: 30 }';
+
+
 const client = new net.Socket();
 
 client.connect(port, host, function () {
 	console.log('TCP connection established with the server.');
-	client.write(`${message} from ${client.address().address}`);
+	client.write(messageToSend);
 });
 
 client.on('data', function (chunk) {
