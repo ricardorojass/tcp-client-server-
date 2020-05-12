@@ -10,6 +10,7 @@
   "author": "Ricardo Rojas <reddrum7@gmail.com> (https://ricardorojass.github.io)",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "fast-csv": "^4.1.3"
   }
 }

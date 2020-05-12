@@ -1,5 +1,8 @@
 const { Server } = require('net');
 const os = require('os');
+const fs = require('fs');
+const fastCSV = require('fast-csv');
+const LogEntry = require('./logEntry');
 
 class TCPServer extends Server {
     constructor(port) {
@@ -41,23 +44,12 @@ class TCPServer extends Server {
     processRequest() {
         super.on('connection', (socket) => {
             socket.setEncoding('utf-8');
-            socket.setTimeout(1000);
 
             socket.on('data', (chunk) => {
                 // Here we have the data from the client
-                const messageParts = chunk.split('\n');
-                if (messageParts.length != 3) throw new Error('Invalid message format')
-                if (!messageParts[1].toUpperCase().trim().includes('MACHINE:')) throw new Error('Invalid message format');
-                const machineParts = messageParts[1].split(':');
-                if (machineParts.length != 2) throw new Error('Invalid message format');
+                const responseMessage = this.processMessageFromClient(chunk);
 
-                const machine = machineParts[1].trim().toUpperCase();
-                if (!messageParts[2].toUpperCase().trim().includes('DATA:')) throw new Error('Invalid message format');
-
-                const data = messageParts[2].substring(6);
-                const dataReceived = `when: ${new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')}, machine: ${machine}, data: ${data}`;
-
-                console.log(`Data received from client:\n\n${dataReceived}`);
+                console.log(`Data received from client: ${responseMessage}`);
                 socket.end();
             });
             // Response to the client
@@ -68,6 +60,47 @@ class TCPServer extends Server {
                 console.log(err);
             });
         });
+    }
+
+    processMessageFromClient(message) {
+        const notCompliantWithYWPError = "No cumple con el protocolo YWP";
+        if (message.length === 0) return notCompliantWithYWPError;
+
+        if (message.includes('GET')) return this.processGet(message);
+        if (message.includes('LOG')) {
+            let error;
+            error = this.processLog(message);
+            // if (error.length !== 0) {
+            //     return error;
+            // }
+            return 'Log entry saved';
+        }
+        return notCompliantWithYWPError;
+    }
+
+    async processLog(message) {
+        let log;
+        try {
+            log = await LogEntry(message);
+            await this.saveCSVFile(log);
+            return null;
+        } catch (error) {
+            return error;
+        }
+    }
+
+    processGet(message) {
+        return  'GET entry saved from Function'
+    }
+
+    saveCSVFile(message) {
+        const csvStream = fastCSV.format({ headers: true });
+        const ws = fs.createWriteStream('log.csv');
+
+        csvStream.pipe(ws);
+
+        csvStream.write(message);
+        csvStream.end();
     }
 }
 
