@@ -42,19 +42,19 @@ class TCPServer extends Server {
     }
 
     processRequest() {
-        super.on('connection', (socket) => {
+        super.on('connection', async (socket) => {
             socket.setEncoding('utf-8');
 
-            socket.on('data', (chunk) => {
+            socket.on('data', async (chunk) => {
                 // Here we have the data from the client
-                const responseMessage = this.processMessageFromClient(chunk);
+                const responseMessage = await this.processMessageFromClient(chunk);
 
-                console.log(`Data received from client: ${responseMessage}`);
+                console.log(responseMessage);
                 socket.end();
             });
             // Response to the client
 
-            socket.write('Success!');
+            socket.write('Success!!!');
 
             socket.on('error', (err) => {
                 console.log(err);
@@ -62,17 +62,17 @@ class TCPServer extends Server {
         });
     }
 
-    processMessageFromClient(message) {
-        const notCompliantWithYWPError = "No cumple con el protocolo YWP";
+    async processMessageFromClient(message) {
+        const notCompliantWithYWPError = 'No cumple con el protocolo YWP';
         if (message.length === 0) return notCompliantWithYWPError;
 
         if (message.includes('GET')) return this.processGet(message);
         if (message.includes('LOG')) {
             let error;
-            error = this.processLog(message);
-            // if (error.length !== 0) {
-            //     return error;
-            // }
+            error = await this.processLog(message);
+            if (error && error.length !== 0) {
+                return error;
+            }
             return 'Log entry saved';
         }
         return notCompliantWithYWPError;
@@ -82,7 +82,12 @@ class TCPServer extends Server {
         let log;
         try {
             log = await LogEntry(message);
-            await this.saveCSVFile(log);
+            const csvStream = fastCSV.format({ writeHeaders: false, delimiter: '\t' });
+            const ws = fs.createWriteStream('log.csv', { flags: 'a',  });
+            csvStream.pipe(ws);
+            csvStream.write(log);
+            csvStream.write(',');
+            csvStream.end();
             return null;
         } catch (error) {
             return error;
@@ -91,16 +96,6 @@ class TCPServer extends Server {
 
     processGet(message) {
         return  'GET entry saved from Function'
-    }
-
-    saveCSVFile(message) {
-        const csvStream = fastCSV.format({ headers: true });
-        const ws = fs.createWriteStream('log.csv');
-
-        csvStream.pipe(ws);
-
-        csvStream.write(message);
-        csvStream.end();
     }
 }
 
