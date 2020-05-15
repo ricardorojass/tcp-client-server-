@@ -44,17 +44,20 @@ class TCPServer extends Server {
     processRequest() {
         super.on('connection', async (socket) => {
             socket.setEncoding('utf-8');
-
+            let responseMessage;
             socket.on('data', async (chunk) => {
                 // Here we have the data from the client
-                const responseMessage = await this.processMessageFromClient(chunk);
-
+                responseMessage = await this.processMessageFromClient(chunk);
                 console.log(responseMessage);
+
+                // Respond to client
+                if (!responseMessage) {
+                    socket.write('Upps!!! something wrong happened');
+                } else {
+                    socket.write(responseMessage.toString());
+                }
                 socket.end();
             });
-            // Response to the client
-
-            socket.write('Success!!!');
 
             socket.on('error', (err) => {
                 console.log(err);
@@ -66,7 +69,7 @@ class TCPServer extends Server {
         const notCompliantWithYWPError = 'No cumple con el protocolo YWP';
         if (message.length === 0) return notCompliantWithYWPError;
 
-        if (message.includes('GET')) return this.processGet(message);
+        if (message.includes('GET')) return await this.processGet(message);
         if (message.includes('LOG')) {
             let error;
             error = await this.processLog(message);
@@ -94,8 +97,29 @@ class TCPServer extends Server {
         }
     }
 
-    processGet(message) {
-        return  'GET entry saved from Function'
+    async processGet(message) {
+        const machineRequested = this.getMachineInRequest(message);
+        let existingRecords = [];
+        const readStream = fs.createReadStream('log.csv', { encoding: 'utf8', highWaterMark: 1024 });
+        for await (const chunk of readStream) {
+            existingRecords = chunk.split('\n');
+        }
+        let result = '';
+        const normalizeRecords = existingRecords.map((value) => value.split('\t').filter((el) => el.length > 0));
+        result = normalizeRecords.filter((el) => el[0] === machineRequested);
+        if (result[0] && result[0].length > 0) return result[0];
+        return null
+    }
+
+    getMachineInRequest(message) {
+        const requestParts = message.split(' ');
+
+        if (requestParts.length == 2 && requestParts[1].trim().toUpperCase().includes("FILTERED:")) {
+            const filteredParts = requestParts[1].split(':');
+            if (filteredParts.length == 2) return filteredParts[1].toUpperCase().trim();
+            return null;
+        }
+        return null;
     }
 }
 
